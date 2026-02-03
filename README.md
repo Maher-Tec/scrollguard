@@ -42,7 +42,7 @@ ScrollGuard is a powerful Flutter application designed to help users break free 
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/scrollguard.git
+    git clone https://github.com/Maher-Tec/scrollguard.git
     cd scrollguard
     ```
 
