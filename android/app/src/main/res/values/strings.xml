@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_service_description">ScrollGuard uses the Accessibility Service to detect when you are using social media apps. This allows the app to help you stay mindful of your usage time. No personal data or content is collected or stored.</string>
+</resources>
