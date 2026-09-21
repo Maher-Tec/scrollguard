@@ -9,6 +9,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Process
 import android.provider.Settings
+import android.util.Log
 import android.accessibilityservice.AccessibilityServiceInfo
 import android.view.accessibility.AccessibilityManager
 import androidx.annotation.NonNull
@@ -20,15 +21,23 @@ import java.util.Calendar
 class MainActivity : FlutterActivity() {
     private val PERMISSIONS_CHANNEL = "com.maherahmed.scrollguard/permissions"
     private val USAGE_STATS_CHANNEL = "com.maherahmed.scrollguard/usage_stats"
+    private val NAVIGATION_CHANNEL = "com.maherahmed.scrollguard/navigation"
+    private var pendingRoute: String? = null
 
     override fun configureFlutterEngine(@NonNull flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         
-        // Handle initial route if launched from OverlayService
-        val route = intent.getStringExtra("route")
-        if (route != null) {
-            flutterEngine.navigationChannel.pushRoute(route)
-        }
+        pendingRoute = intent.getStringExtra("route")
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, NAVIGATION_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getPendingRoute" -> {
+                        result.success(pendingRoute)
+                        pendingRoute = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
         
         // Permissions Channel
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, PERMISSIONS_CHANNEL).setMethodCallHandler { call, result ->
@@ -70,6 +79,11 @@ class MainActivity : FlutterActivity() {
                     result.success(getInstalledSocialApps())
                 }
                 "startMonitoring" -> {
+                    if (!isAccessibilityServiceEnabled() || !ScrollGuardAccessibilityService.isServiceRunning) {
+                        Log.w("ScrollGuardAccess", "Monitoring refused: accessibility service is not connected")
+                        result.success(false)
+                        return@setMethodCallHandler
+                    }
                     val packageNames = call.argument<List<String>>("packageNames") ?: emptyList()
                     val limitMinutes = call.argument<Int>("timeLimitMinutes") ?: 30
                     val baselines = call.argument<Map<String, Int>>("baselines") ?: emptyMap()
@@ -79,7 +93,10 @@ class MainActivity : FlutterActivity() {
                         limitMinutes,
                         baselines
                     )
-                    result.success(isAccessibilityServiceEnabled())
+                    result.success(ScrollGuardAccessibilityService.isMonitoringReady)
+                }
+                "isMonitoringActive" -> {
+                    result.success(ScrollGuardAccessibilityService.isMonitoringReady)
                 }
                 "stopMonitoring" -> {
                     ScrollGuardAccessibilityService.stopMonitoring()
@@ -100,9 +117,14 @@ class MainActivity : FlutterActivity() {
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        setIntent(intent)
         val route = intent.getStringExtra("route")
         if (route != null) {
-            flutterEngine?.navigationChannel?.pushRoute(route)
+            pendingRoute = route
+            flutterEngine?.let { engine ->
+                MethodChannel(engine.dartExecutor.binaryMessenger, NAVIGATION_CHANNEL)
+                    .invokeMethod("openRoute", route)
+            }
         }
     }
 

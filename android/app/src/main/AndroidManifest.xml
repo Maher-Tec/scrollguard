@@ -9,16 +9,9 @@
     <!-- Overlay: Required to display mindful intervention screens -->
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     
-    <!-- Foreground Service: Required for background monitoring -->
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
-    
     <!-- Vibration: For haptic feedback during breathing exercises -->
     <uses-permission android:name="android.permission.VIBRATE" />
-    
-    <!-- Boot Completed: To restart monitoring after device reboot -->
-    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    
+
     <!-- Query All Packages: To list installed social apps for monitoring -->
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

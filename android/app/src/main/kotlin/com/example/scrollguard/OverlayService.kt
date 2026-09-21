@@ -4,14 +4,17 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
+import android.graphics.Color
+import android.graphics.Typeface
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.IBinder
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
-import android.content.BroadcastReceiver
-import android.content.IntentFilter
+import android.widget.LinearLayout
+import android.widget.TextView
 
 class OverlayService : Service() {
 
@@ -23,32 +26,20 @@ class OverlayService : Service() {
         const val ACTION_HIDE_OVERLAY = "com.example.scrollguard.HIDE_OVERLAY"
     }
 
-    private val overlayReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            when (intent?.action) {
-                ACTION_SHOW_OVERLAY -> showOverlay()
-                ACTION_HIDE_OVERLAY -> hideOverlay()
-            }
-        }
-    }
-
     override fun onCreate() {
         super.onCreate()
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
-        
-        val filter = IntentFilter().apply {
-            addAction(ACTION_SHOW_OVERLAY)
-            addAction(ACTION_HIDE_OVERLAY)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            registerReceiver(overlayReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-        } else {
-            registerReceiver(overlayReceiver, filter)
-        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        return START_STICKY
+        when (intent?.action) {
+            ACTION_SHOW_OVERLAY -> showOverlay()
+            ACTION_HIDE_OVERLAY -> {
+                hideOverlay()
+                stopSelf()
+            }
+        }
+        return START_NOT_STICKY
     }
 
     override fun onBind(intent: Intent?): IBinder? {
@@ -74,20 +65,55 @@ class OverlayService : Service() {
 
             val context = this
             val layout = android.widget.FrameLayout(context)
-            layout.setBackgroundColor(0xCC000000.toInt()) // Semi-transparent black
+            layout.setBackgroundColor(0xB3000000.toInt())
+            val density = resources.displayMetrics.density
+            fun dp(value: Int) = (value * density).toInt()
 
-            val textView = android.widget.TextView(context)
-            textView.text = "Time Limit Reached\nTap to Open ScrollGuard"
-            textView.setTextColor(0xFFFFFFFF.toInt())
-            textView.textSize = 24f
-            textView.gravity = Gravity.CENTER
-            
-            val textParams = android.widget.FrameLayout.LayoutParams(
+            val card = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                gravity = Gravity.CENTER
+                setPadding(dp(24), dp(28), dp(24), dp(24))
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(32, 40, 48))
+                    cornerRadius = dp(24).toFloat()
+                    setStroke(dp(1), Color.rgb(91, 115, 121))
+                }
+            }
+            val title = TextView(context).apply {
+                text = "Time for a pause"
+                textSize = 24f
+                setTextColor(Color.WHITE)
+                typeface = Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER
+            }
+            val subtitle = TextView(context).apply {
+                text = "Your screen time limit is reached."
+                textSize = 15f
+                setTextColor(Color.rgb(191, 203, 207))
+                gravity = Gravity.CENTER
+                setPadding(0, dp(10), 0, dp(22))
+            }
+            val button = TextView(context).apply {
+                text = "Open ScrollGuard"
+                textSize = 17f
+                typeface = Typeface.DEFAULT_BOLD
+                setTextColor(Color.rgb(15, 31, 33))
+                gravity = Gravity.CENTER
+                background = GradientDrawable().apply {
+                    setColor(Color.rgb(116, 219, 203))
+                    cornerRadius = dp(14).toFloat()
+                }
+            }
+            card.addView(title)
+            card.addView(subtitle)
+            card.addView(button, LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT, dp(52)
+            ))
+            layout.addView(card, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
                 android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
-                android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
-            )
-            textParams.gravity = Gravity.CENTER
-            layout.addView(textView, textParams)
+                Gravity.CENTER
+            ).apply { marginStart = dp(24); marginEnd = dp(24) })
             
             layout.setOnClickListener {
                 val activityIntent = Intent(context, MainActivity::class.java).apply {
@@ -98,6 +124,7 @@ class OverlayService : Service() {
                 }
                 context.startActivity(activityIntent)
                 hideOverlay()
+                stopSelf()
             }
 
             windowManager?.addView(layout, params)
@@ -128,7 +155,6 @@ class OverlayService : Service() {
 
     override fun onDestroy() {
         super.onDestroy()
-        unregisterReceiver(overlayReceiver)
         hideOverlay()
     }
 }

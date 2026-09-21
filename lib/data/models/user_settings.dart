@@ -1,4 +1,6 @@
+import 'package:flutter/material.dart';
 import 'monitored_app.dart';
+import 'intervention_mode.dart';
 
 /// User preferences and settings
 class UserSettings {
@@ -8,6 +10,8 @@ class UserSettings {
   final bool hapticsEnabled;
   final bool soundsEnabled;
   final bool monitoringActive;
+  final InterventionMode interventionMode;
+  final ThemeMode themeMode;
 
   const UserSettings({
     this.onboardingComplete = false,
@@ -16,6 +20,8 @@ class UserSettings {
     this.hapticsEnabled = true,
     this.soundsEnabled = true,
     this.monitoringActive = false,
+    this.interventionMode = InterventionMode.breathing,
+    this.themeMode = ThemeMode.dark,
   });
 
   UserSettings copyWith({
@@ -25,6 +31,8 @@ class UserSettings {
     bool? hapticsEnabled,
     bool? soundsEnabled,
     bool? monitoringActive,
+    InterventionMode? interventionMode,
+    ThemeMode? themeMode,
   }) {
     return UserSettings(
       onboardingComplete: onboardingComplete ?? this.onboardingComplete,
@@ -33,6 +41,8 @@ class UserSettings {
       hapticsEnabled: hapticsEnabled ?? this.hapticsEnabled,
       soundsEnabled: soundsEnabled ?? this.soundsEnabled,
       monitoringActive: monitoringActive ?? this.monitoringActive,
+      interventionMode: interventionMode ?? this.interventionMode,
+      themeMode: themeMode ?? this.themeMode,
     );
   }
 
@@ -54,6 +64,8 @@ class UserSettings {
       'hapticsEnabled': hapticsEnabled,
       'soundsEnabled': soundsEnabled,
       'monitoringActive': monitoringActive,
+      'interventionMode': interventionMode.name,
+      'themeMode': themeMode.name,
     };
   }
 
@@ -68,11 +80,19 @@ class UserSettings {
       hapticsEnabled: json['hapticsEnabled'] as bool? ?? true,
       soundsEnabled: json['soundsEnabled'] as bool? ?? true,
       monitoringActive: json['monitoringActive'] as bool? ?? false,
+      interventionMode: InterventionMode.values.firstWhere(
+        (mode) => mode.name == json['interventionMode'],
+        orElse: () => InterventionMode.breathing,
+      ),
+      themeMode: ThemeMode.values.firstWhere(
+        (mode) => mode.name == json['themeMode'],
+        orElse: () => ThemeMode.dark,
+      ),
     );
   }
 
   @override
   String toString() {
-    return 'UserSettings(onboardingComplete: $onboardingComplete, apps: ${monitoredApps.length}, limit: ${timeLimitMinutes}min)';
+    return 'UserSettings(onboardingComplete: $onboardingComplete, apps: ${monitoredApps.length}, limit: ${timeLimitMinutes}min, theme: ${themeMode.name})';
   }
 }

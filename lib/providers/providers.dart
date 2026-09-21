@@ -1,5 +1,8 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../data/models/user_settings.dart';
+import '../data/models/intervention_mode.dart';
 import '../data/models/usage_entry.dart';
 import '../data/repositories/settings_repository.dart';
 import '../data/repositories/usage_repository.dart';
@@ -34,18 +37,20 @@ final usageStatsServiceProvider = Provider<UsageStatsService>((ref) {
 // SETTINGS STATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-final settingsProvider = StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
-  return SettingsNotifier(
-    ref.read(settingsRepositoryProvider),
-    ref.read(usageStatsServiceProvider),
-  );
-});
+final settingsProvider =
+    StateNotifierProvider<SettingsNotifier, AsyncValue<UserSettings>>((ref) {
+      return SettingsNotifier(
+        ref.read(settingsRepositoryProvider),
+        ref.read(usageStatsServiceProvider),
+      );
+    });
 
 class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
   final SettingsRepository _repository;
   final UsageStatsService _usageService;
 
-  SettingsNotifier(this._repository, this._usageService) : super(const AsyncValue.loading()) {
+  SettingsNotifier(this._repository, this._usageService)
+    : super(const AsyncValue.loading()) {
     _loadSettings();
   }
 
@@ -86,7 +91,7 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
         }
         return app;
       }).toList();
-      
+
       final updated = current.copyWith(monitoredApps: updatedApps);
       await _repository.saveSettings(updated);
       state = AsyncValue.data(updated);
@@ -120,15 +125,33 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
     }
   }
 
+  Future<void> setInterventionMode(InterventionMode mode) async {
+    final current = state.valueOrNull;
+    if (current != null) {
+      final updated = current.copyWith(interventionMode: mode);
+      await _repository.saveSettings(updated);
+      state = AsyncValue.data(updated);
+    }
+  }
+
+  Future<void> setThemeMode(ThemeMode mode) async {
+    final current = state.valueOrNull;
+    if (current != null) {
+      final updated = current.copyWith(themeMode: mode);
+      await _repository.saveSettings(updated);
+      state = AsyncValue.data(updated);
+    }
+  }
+
   Future<void> toggleMonitoring(bool active) async {
     final current = state.valueOrNull;
     if (current != null) {
       final updated = current.copyWith(monitoringActive: active);
       await _repository.saveSettings(updated);
       state = AsyncValue.data(updated);
-      
+
       if (!active) {
-         await _usageService.stopMonitoring();
+        await _usageService.stopMonitoring();
       }
     }
   }
@@ -138,24 +161,22 @@ class SettingsNotifier extends StateNotifier<AsyncValue<UserSettings>> {
 // USAGE STATE
 // ═══════════════════════════════════════════════════════════════════════════
 
-final usageProvider = StateNotifierProvider<UsageNotifier, AsyncValue<DailyUsage>>((ref) {
-  return UsageNotifier(
-    ref.read(usageRepositoryProvider),
-    ref.read(usageStatsServiceProvider),
-    ref.read(settingsRepositoryProvider),
-  );
-});
+final usageProvider =
+    StateNotifierProvider<UsageNotifier, AsyncValue<DailyUsage>>((ref) {
+      return UsageNotifier(
+        ref.read(usageRepositoryProvider),
+        ref.read(usageStatsServiceProvider),
+        ref.read(settingsRepositoryProvider),
+      );
+    });
 
 class UsageNotifier extends StateNotifier<AsyncValue<DailyUsage>> {
   final UsageRepository _repository;
   final UsageStatsService _usageService;
   final SettingsRepository _settingsRepository;
 
-  UsageNotifier(
-    this._repository, 
-    this._usageService,
-    this._settingsRepository,
-  ) : super(const AsyncValue.loading()) {
+  UsageNotifier(this._repository, this._usageService, this._settingsRepository)
+    : super(const AsyncValue.loading()) {
     _loadUsage();
   }
 
@@ -164,13 +185,13 @@ class UsageNotifier extends StateNotifier<AsyncValue<DailyUsage>> {
     try {
       // 1. Load local data (preserves intervention count)
       final localUsage = await _repository.getTodayUsage();
-      
+
       // 2. Load settings to know which apps to check
       final settings = await _settingsRepository.loadSettings();
       final packageNames = settings.enabledPackages;
 
       // 3. Fetch actual usage from Native Android layer
-      final nativeUsageMap = packageNames.isNotEmpty 
+      final nativeUsageMap = packageNames.isNotEmpty
           ? await _usageService.getTodayUsage(packageNames)
           : <String, int>{};
 
@@ -185,14 +206,17 @@ class UsageNotifier extends StateNotifier<AsyncValue<DailyUsage>> {
         final pkg = entry.key;
         final currentMinutes = entry.value;
         final baselineMinutes = baselineMap[pkg] ?? 0;
-        
+
         // Ensure strictly non-negative usage for the session
-        final sessionMinutes = (currentMinutes - baselineMinutes).clamp(0, 9999);
-        
+        final sessionMinutes = (currentMinutes - baselineMinutes).clamp(
+          0,
+          9999,
+        );
+
         effectiveUsageMap[pkg] = sessionMinutes;
         totalMinutes += sessionMinutes;
       }
-      
+
       final updatedUsage = localUsage.copyWith(
         totalMinutes: totalMinutes,
         appUsage: effectiveUsageMap,
@@ -219,20 +243,28 @@ class UsageNotifier extends StateNotifier<AsyncValue<DailyUsage>> {
   Future<void> reload() async {
     await _loadUsage();
   }
-  
-  /// Start a new session: resets the daily counter to 0 by setting current usage as baseline
+
+  /// Start a new session by saving the current daily usage as its baseline.
   Future<void> startSession() async {
     try {
       final settings = await _settingsRepository.loadSettings();
       final packageNames = settings.enabledPackages;
-      
+
       if (packageNames.isNotEmpty) {
         // Snapshot current usage as the new baseline
         final currentUsage = await _usageService.getTodayUsage(packageNames);
         await _repository.saveBaseline(currentUsage);
-        
-        // Reload to reflect 0 usage
-        await _loadUsage();
+
+        // Publish a fresh session immediately. Calling _loadUsage() here can
+        // restart native monitoring from stale saved settings before the
+        // dashboard explicitly starts the new zero-based session.
+        final localUsage = await _repository.getTodayUsage();
+        final resetUsage = localUsage.copyWith(
+          totalMinutes: 0,
+          appUsage: {for (final packageName in packageNames) packageName: 0},
+        );
+        await _repository.saveTodayUsage(resetUsage);
+        state = AsyncValue.data(resetUsage);
       }
     } catch (e) {
       // Ignore errors manually
@@ -273,3 +305,43 @@ final permissionStatusProvider = FutureProvider<PermissionStatus>((ref) async {
   final service = ref.read(permissionServiceProvider);
   return service.getPermissionStatus();
 });
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DHIKR STATE
+// ═══════════════════════════════════════════════════════════════════════════
+
+final dhikrCountProvider = StateNotifierProvider<DhikrCountNotifier, int>((
+  ref,
+) {
+  return DhikrCountNotifier();
+});
+
+class DhikrCountNotifier extends StateNotifier<int> {
+  DhikrCountNotifier() : super(0) {
+    loadTodayCount();
+  }
+
+  static String get todayKey {
+    final now = DateTime.now();
+    return 'dhikr_taps_${now.year}_${now.month}_${now.day}';
+  }
+
+  Future<void> loadTodayCount() async {
+    final prefs = await SharedPreferences.getInstance();
+    final count = prefs.getInt(todayKey) ?? 0;
+    state = count;
+  }
+
+  Future<void> updateCount(int newCount) async {
+    state = newCount;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(todayKey, newCount);
+  }
+
+  Future<void> increment() async {
+    final next = state + 1;
+    state = next;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(todayKey, next);
+  }
+}

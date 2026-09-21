@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_typography.dart';
 import '../../../core/constants/app_constants.dart';
 import '../../../data/models/intervention_type.dart';
+import '../../../data/models/intervention_mode.dart';
 import '../../../providers/providers.dart';
 import '../../../router.dart';
 
@@ -68,78 +69,57 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.background,
       body: Stack(
         children: [
-          // ═══════════════════════════════════════════════════════════════
-          // ANIMATED BACKGROUND
-          // ═══════════════════════════════════════════════════════════════
-          
-          _buildAnimatedBackground(),
-          
-          // ═══════════════════════════════════════════════════════════════
-          // CONTENT
-          // ═══════════════════════════════════════════════════════════════
-          
+          _buildAnimatedBackground(context),
           SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                32, 0, 32,
+                MediaQuery.sizeOf(context).height * 0.45,
+              ),
               child: Column(
                 children: [
-                  const Spacer(flex: 2),
-                  
-                  // Pulsing icon
-                  _buildPulsingIcon()
-                  .animate()
-                  .fadeIn(duration: 1000.ms)
-                  .scaleXY(begin: 0.8, end: 1.0, curve: Curves.easeOutBack),
-                  
-                  const SizedBox(height: 48),
-                  
-                  // Message
+                  const SizedBox(height: 36),
+                  _buildPulsingIcon(context)
+                      .animate()
+                      .fadeIn(duration: 1000.ms)
+                      .scaleXY(begin: 0.8, end: 1.0, curve: Curves.easeOutBack),
+                  const SizedBox(height: 28),
                   Text(
                     'Let\'s check in',
                     style: AppTypography.displaySmall.copyWith(
-                      color: AppColors.textPrimary,
+                      color: colors.textPrimary,
                     ),
                     textAlign: TextAlign.center,
                   )
-                  .animate()
-                  .fadeIn(duration: 800.ms, delay: 400.ms)
-                  .slideY(begin: 0.2, end: 0),
-                  
+                      .animate()
+                      .fadeIn(duration: 800.ms, delay: 400.ms)
+                      .slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 16),
-                  
                   Text(
                     'You\'ve been scrolling for a while.\nLet\'s pause for a moment.',
                     style: AppTypography.motivational.copyWith(
-                      color: AppColors.textSecondary,
+                      color: colors.textSecondary,
                     ),
                     textAlign: TextAlign.center,
                   )
-                  .animate()
-                  .fadeIn(duration: 800.ms, delay: 600.ms),
-                  
-                  const Spacer(flex: 2),
-                  
-                  // ═══════════════════════════════════════════════════════
-                  // INTERVENTION OPTIONS
-                  // ═══════════════════════════════════════════════════════
-                  
-                  _buildInterventionOptions()
-                  .animate()
-                  .fadeIn(duration: 600.ms, delay: 800.ms)
-                  .slideY(begin: 0.2, end: 0),
-                  
+                      .animate()
+                      .fadeIn(duration: 800.ms, delay: 600.ms),
+                  const SizedBox(height: 36),
+                  _buildInterventionOptions(context)
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 800.ms)
+                      .slideY(begin: 0.2, end: 0),
                   const SizedBox(height: 24),
-                  
-                  // Continue button (appears after countdown)
-                  _buildContinueButton()
-                  .animate()
-                  .fadeIn(duration: 600.ms, delay: 1000.ms),
-                  
-                  const SizedBox(height: 48),
+                  _buildContinueButton(context)
+                      .animate()
+                      .fadeIn(duration: 600.ms, delay: 1000.ms),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -149,7 +129,8 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
     );
   }
 
-  Widget _buildAnimatedBackground() {
+  Widget _buildAnimatedBackground(BuildContext context) {
+    final colors = context.sanctuary;
     return AnimatedBuilder(
       animation: _backgroundController,
       builder: (context, child) {
@@ -162,9 +143,9 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
               ),
               radius: 2.0,
               colors: [
-                AppColors.primary.withOpacity(0.15),
-                AppColors.accent.withOpacity(0.08),
-                AppColors.background,
+                colors.primary.withValues(alpha: 0.15),
+                colors.accent.withValues(alpha: 0.08),
+                colors.background,
               ],
               stops: const [0.0, 0.5, 1.0],
             ),
@@ -174,13 +155,13 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
     );
   }
 
-  Widget _buildPulsingIcon() {
+  Widget _buildPulsingIcon(BuildContext context) {
+    final colors = context.sanctuary;
     return AnimatedBuilder(
       animation: _pulseController,
       builder: (context, child) {
         final scale = 1.0 + (_pulseController.value * 0.1);
         final opacity = 0.3 + (_pulseController.value * 0.3);
-        
         return Container(
           width: 140,
           height: 140,
@@ -188,7 +169,7 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(opacity),
+                color: colors.primary.withValues(alpha: opacity),
                 blurRadius: 60,
                 spreadRadius: 20,
               ),
@@ -203,20 +184,17 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                   colors: [
-                    AppColors.primary.withOpacity(0.3),
-                    AppColors.accent.withOpacity(0.2),
+                    colors.primary.withValues(alpha: 0.3),
+                    colors.accent.withValues(alpha: 0.2),
                   ],
                 ),
                 border: Border.all(
-                  color: AppColors.primary.withOpacity(0.5),
+                  color: colors.primary.withValues(alpha: 0.5),
                   width: 2,
                 ),
               ),
               child: const Center(
-                child: Text(
-                  '🧘',
-                  style: TextStyle(fontSize: 56),
-                ),
+                child: Text('🧘', style: TextStyle(fontSize: 56)),
               ),
             ),
           ),
@@ -225,72 +203,80 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
     );
   }
 
-  Widget _buildInterventionOptions() {
-    return Row(
+  Widget _buildInterventionOptions(BuildContext context) {
+    final mode = ref.watch(settingsProvider).valueOrNull?.interventionMode ??
+        InterventionMode.breathing;
+    return Column(
       children: [
-        Expanded(
-          child: _buildOptionCard(
-            type: InterventionType.breathing,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              context.push(Routes.breathing);
-            },
+        if (mode != InterventionMode.breathing) ...[
+          _buildOptionCard(
+            context,
+            icon: '☪',
+            title: 'Dhikr',
+            description: 'A short remembrance and tap counter',
+            onTap: () => context.push(Routes.dhikr),
           ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: _buildOptionCard(
-            type: InterventionType.grounding,
-            onTap: () {
-              HapticFeedback.mediumImpact();
-              // TODO: Navigate to grounding exercise
-            },
+          if (mode == InterventionMode.both) const SizedBox(height: 12),
+        ],
+        if (mode != InterventionMode.dhikr)
+          _buildOptionCard(
+            context,
+            icon: InterventionType.breathing.icon,
+            title: InterventionType.breathing.displayName,
+            description: 'Box breathing · 3 cycles',
+            onTap: () => context.push(Routes.breathing),
           ),
-        ),
       ],
     );
   }
 
-  Widget _buildOptionCard({
-    required InterventionType type,
+  Widget _buildOptionCard(
+    BuildContext context, {
+    required String icon,
+    required String title,
+    required String description,
     required VoidCallback onTap,
   }) {
+    final colors = context.sanctuary;
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.surfaceCard,
+          color: colors.surfaceCard,
           borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: AppColors.glassBorder),
+          border: Border.all(color: colors.border),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.1),
+              color: colors.primary.withValues(alpha: colors.isDark ? 0.1 : 0.05),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
           ],
         ),
-        child: Column(
+        child: Row(
           children: [
-            Text(
-              type.icon,
-              style: const TextStyle(fontSize: 40),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              type.displayName,
-              style: AppTypography.titleMedium.copyWith(
-                color: AppColors.primary,
+            Text(icon, style: const TextStyle(fontSize: 28)),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTypography.titleMedium.copyWith(
+                      color: colors.primary,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    description,
+                    style: AppTypography.bodySmall.copyWith(
+                      color: colors.textSecondary,
+                    ),
+                  ),
+                ],
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              type == InterventionType.breathing 
-                  ? 'Box breathing\n3 cycles'
-                  : '5-4-3-2-1\nsenses',
-              style: AppTypography.bodySmall,
-              textAlign: TextAlign.center,
             ),
           ],
         ),
@@ -298,7 +284,8 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
     );
   }
 
-  Widget _buildContinueButton() {
+  Widget _buildContinueButton(BuildContext context) {
+    final colors = context.sanctuary;
     return AnimatedOpacity(
       opacity: _canContinue ? 1.0 : 0.5,
       duration: const Duration(milliseconds: 300),
@@ -308,12 +295,10 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 16),
           decoration: BoxDecoration(
-            color: AppColors.surfaceLight,
+            color: colors.isDark ? AppColors.surfaceLight : const Color(0xFFE2E8F0),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: _canContinue 
-                  ? AppColors.glassBorder 
-                  : Colors.transparent,
+              color: _canContinue ? colors.border : Colors.transparent,
             ),
           ),
           child: Row(
@@ -321,20 +306,21 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
             children: [
               Icon(
                 Icons.arrow_forward_rounded,
-                color: _canContinue 
-                    ? AppColors.textSecondary 
-                    : AppColors.textMuted,
+                color: _canContinue
+                    ? colors.textSecondary
+                    : colors.textSecondary.withValues(alpha: 0.4),
                 size: 20,
               ),
               const SizedBox(width: 12),
               Text(
-                _canContinue 
+                _canContinue
                     ? 'I\'m aware, continue'
                     : 'Wait $_countdownSeconds seconds...',
                 style: AppTypography.labelLarge.copyWith(
-                  color: _canContinue 
-                      ? AppColors.textSecondary 
-                      : AppColors.textMuted,
+                  color: _canContinue
+                      ? colors.textSecondary
+                      : colors.textSecondary.withValues(alpha: 0.4),
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],
@@ -346,11 +332,7 @@ class _InterventionScreenState extends ConsumerState<InterventionScreen>
 
   void _onContinue() {
     HapticFeedback.lightImpact();
-    
-    // Reset session statistics (new session starts now)
     ref.read(usageProvider.notifier).startSession();
-    
-    // Close overlay and return to previous app
     context.go(Routes.dashboard);
   }
 }

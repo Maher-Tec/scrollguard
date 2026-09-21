@@ -156,18 +156,20 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
 
   @override
   Widget build(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: colors.background,
       body: Stack(
         children: [
           // Animated background gradient
-          _buildBackground(),
+          _buildBackground(context),
           
           SafeArea(
             child: Column(
               children: [
                 // Header
-                _buildHeader(),
+                _buildHeader(context),
                 
                 const Spacer(),
                 
@@ -175,18 +177,18 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
                 if (!_isComplete) ...[
                   _buildBreathingCircle(),
                   const SizedBox(height: 48),
-                  _buildInstructions(),
+                  _buildInstructions(context),
                 ] else ...[
-                  _buildCompletionView(),
+                  _buildCompletionView(context),
                 ],
                 
                 const Spacer(),
                 
                 // Progress / Continue
                 if (!_isComplete)
-                  _buildCycleProgress()
+                  _buildCycleProgress(context)
                 else
-                  _buildContinueButton(),
+                  _buildContinueButton(context),
                 
                 const SizedBox(height: 48),
               ],
@@ -197,7 +199,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
     );
   }
 
-  Widget _buildBackground() {
+  Widget _buildBackground(BuildContext context) {
+    final colors = context.sanctuary;
+
     return AnimatedBuilder(
       animation: _scaleAnimation,
       builder: (context, child) {
@@ -208,8 +212,8 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
               center: Alignment.center,
               radius: 1.5,
               colors: [
-                _getPhaseColor().withOpacity(0.15 * intensity),
-                AppColors.background,
+                _getPhaseColor().withValues(alpha: 0.15 * intensity),
+                colors.background,
               ],
             ),
           ),
@@ -218,7 +222,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -227,17 +233,21 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
           IconButton(
             onPressed: () => context.pop(),
             icon: const Icon(Icons.close_rounded),
-            color: AppColors.textSecondary,
+            color: colors.textSecondary,
           ),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.surfaceCard,
+              color: colors.surfaceCard,
               borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: colors.border),
             ),
             child: Text(
               'Box Breathing',
-              style: AppTypography.labelMedium,
+              style: AppTypography.labelMedium.copyWith(
+                color: colors.textPrimary,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(width: 48),
@@ -260,7 +270,7 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
             shape: BoxShape.circle,
             boxShadow: [
               BoxShadow(
-                color: color.withOpacity(0.3 * scale),
+                color: color.withValues(alpha: 0.3 * scale),
                 blurRadius: 80,
                 spreadRadius: 20,
               ),
@@ -278,7 +288,7 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: color.withOpacity(0.3),
+                      color: color.withValues(alpha: 0.3),
                       width: 2,
                     ),
                   ),
@@ -293,9 +303,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
                   height: 200,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: color.withOpacity(0.1),
+                    color: color.withValues(alpha: 0.1),
                     border: Border.all(
-                      color: color.withOpacity(0.5),
+                      color: color.withValues(alpha: 0.5),
                       width: 3,
                     ),
                   ),
@@ -315,12 +325,12 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
                       end: Alignment.bottomRight,
                       colors: [
                         color,
-                        color.withOpacity(0.7),
+                        color.withValues(alpha: 0.7),
                       ],
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: color.withOpacity(0.5),
+                        color: color.withValues(alpha: 0.5),
                         blurRadius: 30,
                       ),
                     ],
@@ -329,7 +339,7 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
                     child: Text(
                       '$_phaseSecondsRemaining',
                       style: AppTypography.timer.copyWith(
-                        color: AppColors.textOnPrimary,
+                        color: Colors.white,
                       ),
                     ),
                   ),
@@ -342,7 +352,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
     );
   }
 
-  Widget _buildInstructions() {
+  Widget _buildInstructions(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Column(
       children: [
         Text(
@@ -361,13 +373,17 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
         
         Text(
           'Cycle $_currentCycle of ${AppConstants.breatheCycles}',
-          style: AppTypography.bodyMedium,
+          style: AppTypography.bodyMedium.copyWith(
+            color: colors.textSecondary,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildCycleProgress() {
+  Widget _buildCycleProgress(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 48),
       child: Row(
@@ -384,9 +400,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
               shape: BoxShape.circle,
               color: isComplete 
                   ? AppColors.success 
-                  : (isCurrent ? AppColors.primary : AppColors.surfaceLight),
+                  : (isCurrent ? colors.primary : (colors.isDark ? AppColors.surfaceLight : const Color(0xFFCBD5E1))),
               border: isCurrent
-                  ? Border.all(color: AppColors.primary, width: 2)
+                  ? Border.all(color: colors.primary, width: 2)
                   : null,
             ),
           );
@@ -397,7 +413,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
     .fadeIn(duration: 500.ms, delay: 300.ms);
   }
 
-  Widget _buildCompletionView() {
+  Widget _buildCompletionView(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Column(
       children: [
         Container(
@@ -409,12 +427,12 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.success.withOpacity(0.2),
-                AppColors.success.withOpacity(0.1),
+                AppColors.success.withValues(alpha: 0.2),
+                AppColors.success.withValues(alpha: 0.1),
               ],
             ),
             border: Border.all(
-              color: AppColors.success.withOpacity(0.5),
+              color: AppColors.success.withValues(alpha: 0.5),
               width: 3,
             ),
           ),
@@ -447,7 +465,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
           AppConstants.completionMessages[
             DateTime.now().second % AppConstants.completionMessages.length
           ],
-          style: AppTypography.motivational,
+          style: AppTypography.motivational.copyWith(
+            color: colors.textPrimary,
+          ),
           textAlign: TextAlign.center,
         )
         .animate()
@@ -456,7 +476,9 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
     );
   }
 
-  Widget _buildContinueButton() {
+  Widget _buildContinueButton(BuildContext context) {
+    final colors = context.sanctuary;
+
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 32),
       child: Container(
@@ -464,10 +486,15 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
         height: 56,
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(18),
-          gradient: AppColors.primaryGradient,
+          gradient: LinearGradient(
+            colors: [
+              colors.primary,
+              colors.isDark ? const Color(0xFF47CDBB) : const Color(0xFF0F766E),
+            ],
+          ),
           boxShadow: [
             BoxShadow(
-              color: AppColors.primary.withOpacity(0.4),
+              color: colors.primary.withValues(alpha: 0.35),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),
@@ -488,7 +515,8 @@ class _BreathingExerciseState extends ConsumerState<BreathingExercise>
           child: Text(
             'Return to Dashboard',
             style: AppTypography.labelLarge.copyWith(
-              color: AppColors.textOnPrimary,
+              color: Colors.white,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ),

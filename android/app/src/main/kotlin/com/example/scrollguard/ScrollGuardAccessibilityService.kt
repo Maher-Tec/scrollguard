@@ -2,7 +2,6 @@ package com.example.scrollguard
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -21,12 +20,16 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
     companion object {
         private const val TAG = "ScrollGuardAccess"
         var currentPackageName: String? = null
-        var isServiceRunning = false
+        @Volatile var isServiceRunning = false
+        private var activeService: ScrollGuardAccessibilityService? = null
+        val isMonitoringReady: Boolean
+            get() = isServiceRunning && isMonitoringActive
 
         // Settings
         private var monitoredPackages = listOf<String>()
         private var timeLimitMinutes = 30
         private var isMonitoringActive = false
+        private var interventionTriggered = false
         
         // Precise Local Tracking
         private var sessionStartTime = 0L
@@ -50,7 +53,11 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
             
             // Always update our local counter to match Flutter's truth
             totalUsageSinceSessionStartMs = initialUsageMs
+            if (initialUsageMs < timeLimitMinutes * 60_000L) {
+                interventionTriggered = false
+            }
             
+            lastForegroundTimestamp = System.currentTimeMillis()
             if (!wasActive) {
                 sessionStartTime = System.currentTimeMillis()
                 lastForegroundTimestamp = System.currentTimeMillis() 
@@ -58,10 +65,12 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
             } else {
                  Log.d(TAG, "UPDATED SESSION: limit=$limit min, initialUsage=${initialUsageMs}ms")
             }
+            activeService?.startChecks()
         }
 
         fun stopMonitoring() {
             isMonitoringActive = false
+            interventionTriggered = false
             totalUsageSinceSessionStartMs = 0L
         }
     }
@@ -69,12 +78,34 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
     private val checkHandler = Handler(Looper.getMainLooper())
     private val checkRunnable = object : Runnable {
         override fun run() {
-            if (isMonitoringActive && isMonitoredApp(currentPackageName)) {
-                checkUsagePrecise()
-                // Check frequently (every 1 second) for instant feedback
-                checkHandler.postDelayed(this, 1000) 
+            if (isMonitoringActive && !interventionTriggered) {
+                if (isMonitoredApp(currentPackageName)) checkUsagePrecise()
+                if (!interventionTriggered) checkHandler.postDelayed(this, 1000)
             }
         }
+    }
+
+    override fun onServiceConnected() {
+        super.onServiceConnected()
+        activeService = this
+        isServiceRunning = true
+        Log.d(TAG, "Accessibility service connected")
+        startChecks()
+    }
+
+    private fun startChecks() {
+        checkHandler.removeCallbacks(checkRunnable)
+        if (isMonitoringActive && !interventionTriggered) checkHandler.post(checkRunnable)
+    }
+
+    private fun updateForeground(newPackageName: String?, now: Long) {
+        if (newPackageName == currentPackageName) return
+        if (isMonitoringActive && isMonitoredApp(currentPackageName) && lastForegroundTimestamp > 0) {
+            totalUsageSinceSessionStartMs += (now - lastForegroundTimestamp).coerceAtLeast(0L)
+        }
+        currentPackageName = newPackageName
+        lastForegroundTimestamp = now
+        if (isMonitoredApp(newPackageName)) Log.d(TAG, "Entered monitored app: $newPackageName")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -82,29 +113,9 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
             if (it.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
                 val newPackageName = it.packageName?.toString()
                 
-                if (newPackageName != null && newPackageName != currentPackageName) {
-                    val now = System.currentTimeMillis()
-                    
-                    // 1. If previous app was monitored, add its duration to total
-                    if (isMonitoringActive && isMonitoredApp(currentPackageName)) {
-                        val duration = now - lastForegroundTimestamp
-                        if (duration > 0) {
-                            totalUsageSinceSessionStartMs += duration
-                        }
-                    }
-                    
-                    // 2. Update state
-                    currentPackageName = newPackageName
-                    lastForegroundTimestamp = now
-                    
-                    // 3. If new app is monitored, start checking
-                    if (isMonitoringActive && isMonitoredApp(newPackageName)) {
-                        Log.d(TAG, "Entered monitored app: $newPackageName")
-                        checkHandler.removeCallbacks(checkRunnable)
-                        checkHandler.post(checkRunnable)
-                    } else {
-                        checkHandler.removeCallbacks(checkRunnable)
-                    }
+                if (newPackageName != null) {
+                    updateForeground(newPackageName, System.currentTimeMillis())
+                    if (isMonitoringActive && !interventionTriggered) startChecks()
                 }
             }
         }
@@ -134,6 +145,8 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
     }
 
     private fun triggerIntervention() {
+        if (interventionTriggered) return
+        interventionTriggered = true
         Log.d(TAG, "LIMIT REACHED! Triggering intervention.")
         
         // Vibrate to give immediate physical feedback
@@ -155,12 +168,20 @@ class ScrollGuardAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        Log.w(TAG, "Accessibility service interrupted")
+    }
+
+    override fun onUnbind(intent: Intent?): Boolean {
         isServiceRunning = false
+        activeService = null
+        checkHandler.removeCallbacks(checkRunnable)
+        return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         super.onDestroy()
         isServiceRunning = false
+        activeService = null
         currentPackageName = null
         checkHandler.removeCallbacks(checkRunnable)
     }

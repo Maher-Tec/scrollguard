@@ -40,9 +40,6 @@ dependencies:
   # Audio for calming sounds
   just_audio: ^0.9.43
   
-  # Video Player
-  video_player: ^2.8.6
-
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -67,6 +64,5 @@ flutter:
   
   # Assets will be added as needed
   assets:
-     - assets/intro/
      - assets/icon/
 

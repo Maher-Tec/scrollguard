@@ -7,20 +7,14 @@ import 'app.dart';
 void main() {
   // Initialize bindings
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // Setup system preferences without blocking startup
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
   ]);
-  
-  SystemChrome.setEnabledSystemUIMode(
-    SystemUiMode.edgeToEdge,
-  );
 
-  runApp(
-    const ProviderScope(
-      child: ScrollGuardApp(),
-    ),
-  );
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+
+  runApp(const ProviderScope(child: ScrollGuardApp()));
 }
